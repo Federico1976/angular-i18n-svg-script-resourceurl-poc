@@ -1,0 +1,26 @@
+<h1>Angular i18n ResourceURL injection via SVG script href</h1>
+
+<p>
+  Source template contains a safe script URL:
+  <code>/safe-empty.js</code>
+</p>
+
+<svg width="780" height="180" style="border:1px solid #ccc">
+  <script
+    id="svgScriptHref"
+    i18n-href="@@svgScriptHrefUrl"
+    href="/safe-empty.js">
+  </script>
+
+  <script
+    id="svgScriptXlinkHref"
+    i18n-xlink:href="@@svgScriptXlinkHrefUrl"
+    xlink:href="/safe-empty.js">
+  </script>
+
+  <text x="20" y="40">
+    Angular i18n translated SVG script href test
+  </text>
+</svg>
+
+<pre id="out">Check document.body.getAttribute('data-xss')</pre>
