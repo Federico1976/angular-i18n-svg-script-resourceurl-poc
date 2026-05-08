@@ -1,0 +1,1 @@
+console.log('SAFE_EMPTY_SCRIPT_LOADED');
