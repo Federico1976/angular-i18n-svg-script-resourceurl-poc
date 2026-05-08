@@ -2,6 +2,10 @@
 
 ## Summary
 
+Disclosure status
+Reported to Google OSS VRP.
+Closed as duplicate.
+
 This repository contains a private proof-of-concept for a security issue in Angular involving the interaction between:
 
 - Angular i18n translated attributes;
